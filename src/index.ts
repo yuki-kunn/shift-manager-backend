@@ -10,10 +10,14 @@ import { schedulesRouter } from './routes/schedules.js';
 import { aiRouter } from './routes/ai.js';
 import { migrate } from './db/migrate.js';
 
-migrate();
+await migrate();
 
 const app = new Hono();
-app.use('*', cors({ origin: 'http://localhost:5173' }));
+const allowedOrigins = [
+  'http://localhost:5173',
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+];
+app.use('*', cors({ origin: allowedOrigins }));
 app.use('*', logger());
 
 app.route('/api/employees', employeesRouter);

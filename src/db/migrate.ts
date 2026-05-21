@@ -1,7 +1,7 @@
-import { sqlite } from './index.js';
+import { client } from './index.js';
 
-export function migrate() {
-  sqlite.exec(`
+export async function migrate() {
+  await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS employees (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -53,11 +53,13 @@ export function migrate() {
     );
   `);
 
-  const count = sqlite.prepare('SELECT COUNT(*) as c FROM business_hours').get() as { c: number };
-  if (count.c === 0) {
+  const result = await client.execute('SELECT COUNT(*) as c FROM business_hours');
+  const count = result.rows[0].c as number;
+  if (count === 0) {
     const now = new Date().toISOString();
-    sqlite.prepare(
-      `INSERT INTO business_hours (id, open_time, close_time, long_shift_threshold, created_at, updated_at) VALUES (?,?,?,?,?,?)`
-    ).run('default', '09:00', '21:00', 6, now, now);
+    await client.execute({
+      sql: `INSERT INTO business_hours (id, open_time, close_time, long_shift_threshold, created_at, updated_at) VALUES (?,?,?,?,?,?)`,
+      args: ['default', '09:00', '21:00', 6, now, now],
+    });
   }
 }

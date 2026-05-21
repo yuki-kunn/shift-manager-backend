@@ -1,13 +1,10 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
 import * as schema from './schema.js';
-import { mkdirSync } from 'fs';
 
-mkdirSync('./data', { recursive: true });
+const url = process.env.TURSO_DATABASE_URL ?? 'file:./data/shift.db';
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
-export const sqlite = new Database('./data/shift.db');
-sqlite.pragma('journal_mode = WAL');
-sqlite.pragma('foreign_keys = ON');
-
-export const db = drizzle(sqlite, { schema });
+export const client = createClient({ url, authToken });
+export const db = drizzle(client, { schema });
 export { schema };
