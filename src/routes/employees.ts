@@ -23,6 +23,7 @@ employeesRouter.post('/', async (c) => {
     type: body.type,
     hourlyWage: body.hourlyWage ?? 1173,
     color: body.color ?? generateColor(),
+    priority: body.priority ?? 'medium',
     createdAt: now,
     updatedAt: now,
   };

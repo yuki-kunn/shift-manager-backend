@@ -10,7 +10,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
 const PRIORITY_LABELS: Record<string, string> = { high: '高（最優先）', medium: '中（通常）', low: '低（余裕があれば）' };
 
 aiRouter.post('/generate-schedule', async (c) => {
-  const { year, month } = await c.req.json();
+  const { year, month, note } = await c.req.json();
 
   const employees = await db.select().from(schema.employees);
   const [bh] = await db.select().from(schema.businessHours);
@@ -49,14 +49,14 @@ ${JSON.stringify(employeeData, null, 2)}
 
 ## ルール（上から順に厳守）
 1. available=false の日は絶対に入れない
-2. 営業開始（${bh?.openTime ?? '09:00'}）から営業終了（${bh?.closeTime ?? '21:00'}）まで、どの時点においても必ず${minStaff}人以上が同時に勤務していること。途中で人数が${minStaff}人を下回る時間帯が生じてはならない
-3. 【最大稼働優先】available=true の日は、全員を原則として全て出勤させる。人員を絞る・間引くことは禁止。出勤可能な従業員は出勤可能な日に必ずシフトへ入れること
-4. シフト時間は、希望のstartTime/endTimeがあればそれを使用。なければ営業時間全体（${bh?.openTime ?? '09:00'}〜${bh?.closeTime ?? '21:00'}）を割り当てる
-5. 優先度「高」の従業員から先にシフトを確定する。優先度「低」も出勤可能な日は必ず入れる
-6. availableDaysThisMonth（出勤可能日数）が少ない従業員ほど、その出勤可能な日に必ずシフトを入れる（出勤可能日数が少ない人ほど貴重な出勤日を無駄にしない）
-7. シフトは営業時間内のみ（開店〜閉店）
-8. 契約社員はロング（${bh?.longShiftThreshold ?? 6}時間以上）優先
-9. noteを考慮する
+2. 営業開始（${bh?.openTime ?? '09:00'}）から営業終了（${bh?.closeTime ?? '21:00'}）まで、どの時点においても必ず${minStaff}人以上が同時に勤務していること
+3. 優先度「高」の従業員から先にシフトを埋める。優先度「低」は他に人員が足りているときのみ追加する
+4. availableDaysThisMonth（出勤可能日数）が少ない従業員ほど、その出勤可能な日にシフトを優先的に割り当てる
+5. シフトは営業時間内のみ（開店〜閉店）
+6. インターン・パートの月収: 30,000〜50,000円（時給${employees[0]?.hourlyWage ?? 1173}円） → 月25.6〜42.6時間
+7. 契約社員はロング（${bh?.longShiftThreshold ?? 6}時間以上）優先
+8. 希望のstartTime/endTimeがある場合はそれを使用
+9. シフト希望のnoteを考慮する${note ? `\n10. 【管理者からの追加指示】${note}` : ''}
 
 ## 出力形式（JSONのみ、説明文・マークダウン不要）
 {"slots":[{"employeeId":"...","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","note":"任意"}]}`;
