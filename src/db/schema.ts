@@ -1,7 +1,25 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
+export const admins = sqliteTable('admins', {
+  id: text('id').primaryKey(),
+  username: text('username').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const facilities = sqliteTable('facilities', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  username: text('username').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
 export const employees = sqliteTable('employees', {
   id: text('id').primaryKey(),
+  facilityId: text('facility_id').notNull().default('default'),
   name: text('name').notNull(),
   type: text('type', { enum: ['contract', 'intern', 'part'] }).notNull(),
   hourlyWage: integer('hourly_wage').notNull().default(1173),
@@ -13,6 +31,7 @@ export const employees = sqliteTable('employees', {
 
 export const businessHours = sqliteTable('business_hours', {
   id: text('id').primaryKey(),
+  facilityId: text('facility_id').notNull().default('default'),
   openTime: text('open_time').notNull().default('09:00'),
   closeTime: text('close_time').notNull().default('21:00'),
   longShiftThreshold: integer('long_shift_threshold').notNull().default(6),
@@ -37,6 +56,7 @@ export const shiftRequests = sqliteTable('shift_requests', {
 
 export const schedules = sqliteTable('schedules', {
   id: text('id').primaryKey(),
+  facilityId: text('facility_id').notNull().default('default'),
   year: integer('year').notNull(),
   month: integer('month').notNull(),
   status: text('status', { enum: ['draft', 'published'] }).notNull().default('draft'),

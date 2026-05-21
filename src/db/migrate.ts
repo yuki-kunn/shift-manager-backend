@@ -1,9 +1,31 @@
 import { sqlite } from './index.js';
+import { randomUUID } from 'crypto';
+import { createHash } from 'crypto';
+
+export function hashPassword(password: string): string {
+  return createHash('sha256').update(password).digest('hex');
+}
 
 export function migrate() {
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS admins (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS facilities (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS employees (
       id TEXT PRIMARY KEY,
+      facility_id TEXT NOT NULL DEFAULT 'default',
       name TEXT NOT NULL,
       type TEXT NOT NULL CHECK(type IN ('contract','intern','part')),
       hourly_wage INTEGER NOT NULL DEFAULT 1173,
@@ -14,6 +36,7 @@ export function migrate() {
     );
     CREATE TABLE IF NOT EXISTS business_hours (
       id TEXT PRIMARY KEY,
+      facility_id TEXT NOT NULL DEFAULT 'default',
       open_time TEXT NOT NULL DEFAULT '09:00',
       close_time TEXT NOT NULL DEFAULT '21:00',
       long_shift_threshold INTEGER NOT NULL DEFAULT 6,
@@ -36,6 +59,7 @@ export function migrate() {
     );
     CREATE TABLE IF NOT EXISTS schedules (
       id TEXT PRIMARY KEY,
+      facility_id TEXT NOT NULL DEFAULT 'default',
       year INTEGER NOT NULL,
       month INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published')),
@@ -55,21 +79,43 @@ export function migrate() {
     );
   `);
 
-  // 既存DBへのカラム追加（ALTER TABLE IF NOT EXISTS はSQLiteで未対応のため個別に試みる）
   const addColumnIfMissing = (table: string, column: string, definition: string) => {
     const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     if (!cols.some(c => c.name === column)) {
       sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
     }
   };
-  addColumnIfMissing('employees', 'priority', `TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high','medium','low'))`);
-  addColumnIfMissing('business_hours', 'min_staff', 'INTEGER NOT NULL DEFAULT 1');
 
-  const count = sqlite.prepare('SELECT COUNT(*) as c FROM business_hours').get() as { c: number };
-  if (count.c === 0) {
-    const now = new Date().toISOString();
+  addColumnIfMissing('employees', 'priority', `TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high','medium','low'))`);
+  addColumnIfMissing('employees', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
+  addColumnIfMissing('business_hours', 'min_staff', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfMissing('business_hours', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
+  addColumnIfMissing('schedules', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
+
+  const now = new Date().toISOString();
+
+  // デフォルト施設（既存データの移行先）
+  const defaultFacility = sqlite.prepare('SELECT id FROM facilities WHERE id = ?').get('default') as { id: string } | undefined;
+  if (!defaultFacility) {
     sqlite.prepare(
-      `INSERT INTO business_hours (id, open_time, close_time, long_shift_threshold, min_staff, created_at, updated_at) VALUES (?,?,?,?,?,?,?)`
-    ).run('default', '09:00', '21:00', 6, 1, now, now);
+      `INSERT INTO facilities (id, name, username, password_hash, created_at, updated_at) VALUES (?,?,?,?,?,?)`
+    ).run('default', 'デフォルト施設', 'default', hashPassword('changeme'), now, now);
+  }
+
+  // 営業時間の初期データ
+  const bhCount = sqlite.prepare('SELECT COUNT(*) as c FROM business_hours').get() as { c: number };
+  if (bhCount.c === 0) {
+    sqlite.prepare(
+      `INSERT INTO business_hours (id, facility_id, open_time, close_time, long_shift_threshold, min_staff, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`
+    ).run('default', 'default', '09:00', '21:00', 6, 1, now, now);
+  }
+
+  // admin初期アカウント
+  const adminCount = sqlite.prepare('SELECT COUNT(*) as c FROM admins').get() as { c: number };
+  if (adminCount.c === 0) {
+    sqlite.prepare(
+      `INSERT INTO admins (id, username, password_hash, created_at, updated_at) VALUES (?,?,?,?,?)`
+    ).run(randomUUID(), 'admin', hashPassword('adminpass'), now, now);
+    console.log('[migrate] Admin created: admin / adminpass');
   }
 }

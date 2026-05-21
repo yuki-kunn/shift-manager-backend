@@ -3,17 +3,21 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { db, schema } from '../db/index.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { requireFacility, type Env } from '../lib/auth.js';
 
-export const aiRouter = new Hono();
+export const aiRouter = new Hono<Env>();
+aiRouter.use('*', requireFacility);
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
 
 const PRIORITY_LABELS: Record<string, string> = { high: '高（最優先）', medium: '中（通常）', low: '低（余裕があれば）' };
 
 aiRouter.post('/generate-schedule', async (c) => {
+  const { facilityId } = c.get('auth') as { facilityId: string };
   const { year, month, note } = await c.req.json();
 
-  const employees = await db.select().from(schema.employees);
-  const [bh] = await db.select().from(schema.businessHours);
+  const employees = await db.select().from(schema.employees).where(eq(schema.employees.facilityId, facilityId));
+  const [bh] = await db.select().from(schema.businessHours).where(eq(schema.businessHours.facilityId, facilityId));
   const requests = await db.select().from(schema.shiftRequests).where(
     and(eq(schema.shiftRequests.year, year), eq(schema.shiftRequests.month, month))
   );
@@ -87,7 +91,7 @@ ${JSON.stringify(employeeData, null, 2)}
 
   // 既存スケジュール削除
   const existing = await db.select().from(schema.schedules).where(
-    and(eq(schema.schedules.year, year), eq(schema.schedules.month, month))
+    and(eq(schema.schedules.facilityId, facilityId), eq(schema.schedules.year, year), eq(schema.schedules.month, month))
   );
   for (const s of existing) {
     await db.delete(schema.schedules).where(eq(schema.schedules.id, s.id));
@@ -96,7 +100,7 @@ ${JSON.stringify(employeeData, null, 2)}
   // 新規保存
   const now = new Date().toISOString();
   const scheduleId = randomUUID();
-  await db.insert(schema.schedules).values({ id: scheduleId, year, month, status: 'draft', createdAt: now, updatedAt: now });
+  await db.insert(schema.schedules).values({ id: scheduleId, facilityId, year, month, status: 'draft', createdAt: now, updatedAt: now });
 
   for (const slot of slots) {
     await db.insert(schema.scheduleSlots).values({

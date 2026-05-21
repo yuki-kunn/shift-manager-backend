@@ -2,8 +2,10 @@ import { Hono } from 'hono';
 import { db, schema } from '../db/index.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { requireFacility, type Env } from '../lib/auth.js';
 
-export const shiftRequestsRouter = new Hono();
+export const shiftRequestsRouter = new Hono<Env>();
+shiftRequestsRouter.use('*', requireFacility);
 
 shiftRequestsRouter.get('/', async (c) => {
   const employeeId = c.req.query('employeeId');

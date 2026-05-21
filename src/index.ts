@@ -8,6 +8,8 @@ import { settingsRouter } from './routes/settings.js';
 import { shiftRequestsRouter } from './routes/shift-requests.js';
 import { schedulesRouter } from './routes/schedules.js';
 import { aiRouter } from './routes/ai.js';
+import { authRouter } from './routes/auth.js';
+import { adminRouter } from './routes/admin.js';
 import { migrate } from './db/migrate.js';
 
 migrate();
@@ -32,6 +34,8 @@ app.use('*', cors({
 }));
 app.use('*', logger());
 
+app.route('/api/auth', authRouter);
+app.route('/api/admin', adminRouter);
 app.route('/api/employees', employeesRouter);
 app.route('/api/settings', settingsRouter);
 app.route('/api/shift-requests', shiftRequestsRouter);

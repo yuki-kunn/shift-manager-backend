@@ -1,18 +1,19 @@
 import { Hono } from 'hono';
 import { db, schema } from '../db/index.js';
 import { eq, and } from 'drizzle-orm';
+import { requireFacility, type Env } from '../lib/auth.js';
 
-export const schedulesRouter = new Hono();
+export const schedulesRouter = new Hono<Env>();
+schedulesRouter.use('*', requireFacility);
 
 schedulesRouter.get('/', async (c) => {
+  const { facilityId } = c.get('auth') as { facilityId: string };
   const year = c.req.query('year');
   const month = c.req.query('month');
-  const conditions = [];
+  const conditions = [eq(schema.schedules.facilityId, facilityId)];
   if (year) conditions.push(eq(schema.schedules.year, parseInt(year)));
   if (month) conditions.push(eq(schema.schedules.month, parseInt(month)));
-  const list = conditions.length > 0
-    ? await db.select().from(schema.schedules).where(and(...conditions))
-    : await db.select().from(schema.schedules);
+  const list = await db.select().from(schema.schedules).where(and(...conditions));
   const result = await Promise.all(list.map(async (s) => {
     const slots = await db.select().from(schema.scheduleSlots).where(eq(schema.scheduleSlots.scheduleId, s.id));
     return { ...s, slots };
