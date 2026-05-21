@@ -61,7 +61,7 @@ ${JSON.stringify(employeeData, null, 2)}
 ## 出力形式（JSONのみ、説明文・マークダウン不要）
 {"slots":[{"employeeId":"...","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","note":"任意"}]}`;
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-05-20' });
   let text = '';
   try {
     const result = await model.generateContent(prompt);
