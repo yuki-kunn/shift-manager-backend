@@ -10,7 +10,7 @@ import { schedulesRouter } from './routes/schedules.js';
 import { aiRouter } from './routes/ai.js';
 import { migrate } from './db/migrate.js';
 
-await migrate();
+migrate();
 
 const app = new Hono();
 const allowedOrigins = [

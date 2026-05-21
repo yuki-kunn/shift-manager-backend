@@ -1,12 +1,14 @@
-import { createClient } from '@libsql/client';
-import { drizzle } from 'drizzle-orm/libsql';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema.js';
+import { mkdirSync } from 'fs';
 
-// libsql:// → https:// に変換してHTTPクライアントを強制使用 (WebSocketが通らない環境対策)
-const rawUrl = process.env.TURSO_DATABASE_URL ?? 'file:./data/shift.db';
-const url = rawUrl.startsWith('libsql://') ? rawUrl.replace('libsql://', 'https://') : rawUrl;
-const authToken = process.env.TURSO_AUTH_TOKEN;
+const dbPath = process.env.DB_PATH ?? './data/shift.db';
+mkdirSync(dbPath.substring(0, dbPath.lastIndexOf('/')), { recursive: true });
 
-export const client = createClient({ url, authToken });
-export const db = drizzle(client, { schema });
+export const sqlite = new Database(dbPath);
+sqlite.pragma('journal_mode = WAL');
+sqlite.pragma('foreign_keys = ON');
+
+export const db = drizzle(sqlite, { schema });
 export { schema };
