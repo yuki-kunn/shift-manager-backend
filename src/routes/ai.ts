@@ -7,6 +7,8 @@ import { randomUUID } from 'crypto';
 export const aiRouter = new Hono();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
 
+const PRIORITY_LABELS: Record<string, string> = { high: '高（最優先）', medium: '中（通常）', low: '低（余裕があれば）' };
+
 aiRouter.post('/generate-schedule', async (c) => {
   const { year, month } = await c.req.json();
 
@@ -17,31 +19,40 @@ aiRouter.post('/generate-schedule', async (c) => {
   );
 
   const employeeData = employees.map(emp => ({
-    id: emp.id, name: emp.name, type: emp.type, hourlyWage: emp.hourlyWage,
+    id: emp.id,
+    name: emp.name,
+    type: emp.type,
+    hourlyWage: emp.hourlyWage,
+    priority: emp.priority,
+    priorityLabel: PRIORITY_LABELS[emp.priority] ?? '中',
     requests: requests.filter(r => r.employeeId === emp.id).map(r => ({
       day: r.day, available: r.isAvailable, startTime: r.startTime, endTime: r.endTime, note: r.note,
     })),
   }));
+
+  const minStaff = bh?.minStaff ?? 1;
 
   const prompt = `あなたはシフト管理の専門家です。以下の条件に基づいて${year}年${month}月のシフト表を作成してください。
 
 ## 営業時間
 開店: ${bh?.openTime ?? '09:00'}  閉店: ${bh?.closeTime ?? '21:00'}
 ロングシフト基準: ${bh?.longShiftThreshold ?? 6}時間以上
+最低勤務人数: 1日あたり${minStaff}人以上
 
-## 従業員データ
+## 従業員データ（優先度順に配置）
 ${JSON.stringify(employeeData, null, 2)}
 
-## ルール
-1. シフトは営業時間内のみ
-2. インターン・パートの月収: 30,000〜50,000円（時給1,173円） → 月25.6〜42.6時間
-3. 契約社員はロング（${bh?.longShiftThreshold ?? 6}時間以上）優先
-4. available=false の日は絶対に入れない
-5. 希望のstartTime/endTimeがある場合はそれを使用
-6. noteを考慮する
-7. 各日に少なくとも1人配置
+## ルール（上から順に厳守）
+1. available=false の日は絶対に入れない
+2. 各日に必ず${minStaff}人以上配置する
+3. 優先度「高」の従業員から先にシフトを埋める。優先度「低」は他に人員が足りているときのみ追加する
+4. シフトは営業時間内のみ（開店〜閉店）
+5. インターン・パートの月収: 30,000〜50,000円（時給${employees[0]?.hourlyWage ?? 1173}円） → 月25.6〜42.6時間
+6. 契約社員はロング（${bh?.longShiftThreshold ?? 6}時間以上）優先
+7. 希望のstartTime/endTimeがある場合はそれを使用
+8. noteを考慮する
 
-## 出力形式（JSONのみ、説明不要）
+## 出力形式（JSONのみ、説明文・マークダウン不要）
 {"slots":[{"employeeId":"...","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","note":"任意"}]}`;
 
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
