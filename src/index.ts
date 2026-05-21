@@ -28,5 +28,5 @@ app.route('/api/ai', aiRouter);
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
 const port = parseInt(process.env.PORT ?? '3001');
-console.log(`Server running on http://localhost:${port}`);
-serve({ fetch: app.fetch, port });
+console.log(`Server running on http://0.0.0.0:${port}`);
+serve({ fetch: app.fetch, port, hostname: '0.0.0.0' });
