@@ -15,9 +15,21 @@ migrate();
 const app = new Hono();
 const allowedOrigins = [
   'http://localhost:5173',
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  'http://localhost:4173',
+  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) : []),
 ];
-app.use('*', cors({ origin: allowedOrigins }));
+console.log('Allowed origins:', allowedOrigins);
+app.use('*', cors({
+  origin: (origin) => {
+    if (!origin) return origin;
+    if (allowedOrigins.includes(origin)) return origin;
+    // Vercelのプレビューデプロイも許可
+    if (origin.endsWith('.vercel.app')) return origin;
+    return null;
+  },
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use('*', logger());
 
 app.route('/api/employees', employeesRouter);
