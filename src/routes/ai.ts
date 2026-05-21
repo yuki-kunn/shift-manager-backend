@@ -62,12 +62,28 @@ ${JSON.stringify(employeeData, null, 2)}
 {"slots":[{"employeeId":"...","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","note":"任意"}]}`;
 
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  let text = '';
+  try {
+    const result = await model.generateContent(prompt);
+    text = result.response.text();
+  } catch (e) {
+    console.error('[AI] Gemini API error:', e);
+    return c.json({ error: 'Gemini API failed', detail: String(e) }, 500);
+  }
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('No JSON in AI response');
-  const { slots } = JSON.parse(jsonMatch[0]);
+  if (!jsonMatch) {
+    console.error('[AI] No JSON in response. Raw text:', text.slice(0, 500));
+    return c.json({ error: 'No JSON in AI response', raw: text.slice(0, 500) }, 500);
+  }
+
+  let slots: any[];
+  try {
+    ({ slots } = JSON.parse(jsonMatch[0]));
+  } catch (e) {
+    console.error('[AI] JSON parse error:', e, '\nMatched:', jsonMatch[0].slice(0, 500));
+    return c.json({ error: 'JSON parse failed', detail: String(e) }, 500);
+  }
 
   // 既存スケジュール削除
   const existing = await db.select().from(schema.schedules).where(
