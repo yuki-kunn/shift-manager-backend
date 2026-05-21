@@ -18,17 +18,22 @@ aiRouter.post('/generate-schedule', async (c) => {
     and(eq(schema.shiftRequests.year, year), eq(schema.shiftRequests.month, month))
   );
 
-  const employeeData = employees.map(emp => ({
-    id: emp.id,
-    name: emp.name,
-    type: emp.type,
-    hourlyWage: emp.hourlyWage,
-    priority: emp.priority,
-    priorityLabel: PRIORITY_LABELS[emp.priority] ?? '中',
-    requests: requests.filter(r => r.employeeId === emp.id).map(r => ({
-      day: r.day, available: r.isAvailable, startTime: r.startTime, endTime: r.endTime, note: r.note,
-    })),
-  }));
+  const employeeData = employees.map(emp => {
+    const empRequests = requests.filter(r => r.employeeId === emp.id);
+    const availableDays = empRequests.filter(r => r.isAvailable).length;
+    return {
+      id: emp.id,
+      name: emp.name,
+      type: emp.type,
+      hourlyWage: emp.hourlyWage,
+      priority: emp.priority,
+      priorityLabel: PRIORITY_LABELS[emp.priority] ?? '中',
+      availableDaysThisMonth: availableDays,
+      requests: empRequests.map(r => ({
+        day: r.day, available: r.isAvailable, startTime: r.startTime, endTime: r.endTime, note: r.note,
+      })),
+    };
+  });
 
   const minStaff = bh?.minStaff ?? 1;
 
@@ -46,11 +51,12 @@ ${JSON.stringify(employeeData, null, 2)}
 1. available=false の日は絶対に入れない
 2. 営業開始（${bh?.openTime ?? '09:00'}）から営業終了（${bh?.closeTime ?? '21:00'}）まで、どの時点においても必ず${minStaff}人以上が同時に勤務していること。途中で人数が${minStaff}人を下回る時間帯が生じてはならない
 3. 優先度「高」の従業員から先にシフトを埋める。優先度「低」は他に人員が足りているときのみ追加する
-4. シフトは営業時間内のみ（開店〜閉店）
-5. インターン・パートの月収: 30,000〜50,000円（時給${employees[0]?.hourlyWage ?? 1173}円） → 月25.6〜42.6時間
-6. 契約社員はロング（${bh?.longShiftThreshold ?? 6}時間以上）優先
-7. 希望のstartTime/endTimeがある場合はそれを使用
-8. noteを考慮する
+4. availableDaysThisMonth（出勤可能日数）が少ない従業員ほど、その出勤可能な日にシフトを優先的に割り当てる。同一優先度内では出勤可能日数が少ない順に割り当てること
+5. シフトは営業時間内のみ（開店〜閉店）
+6. インターン・パートの月収: 30,000〜50,000円（時給${employees[0]?.hourlyWage ?? 1173}円） → 月25.6〜42.6時間
+7. 契約社員はロング（${bh?.longShiftThreshold ?? 6}時間以上）優先
+8. 希望のstartTime/endTimeがある場合はそれを使用
+9. noteを考慮する
 
 ## 出力形式（JSONのみ、説明文・マークダウン不要）
 {"slots":[{"employeeId":"...","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","note":"任意"}]}`;
