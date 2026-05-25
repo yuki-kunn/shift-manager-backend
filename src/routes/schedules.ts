@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { db, schema } from '../db/index.js';
 import { eq, and } from 'drizzle-orm';
 import { requireFacility, type Env } from '../lib/auth.js';
+import { randomUUID } from 'crypto';
 
 export const schedulesRouter = new Hono<Env>();
 schedulesRouter.use('*', requireFacility);
@@ -43,6 +44,28 @@ schedulesRouter.put('/:id/slots/:slotId', async (c) => {
   const [updated] = await db.select().from(schema.scheduleSlots).where(eq(schema.scheduleSlots.id, slotId));
   if (!updated) return c.json({ error: 'Slot not found' }, 404);
   return c.json(updated);
+});
+
+// slot新規追加
+schedulesRouter.post('/:id/slots', async (c) => {
+  const scheduleId = c.req.param('id');
+  const body = await c.req.json();
+  const now = new Date().toISOString();
+  const newSlot = {
+    id: randomUUID(), scheduleId,
+    employeeId: body.employeeId, date: body.date,
+    startTime: body.startTime, endTime: body.endTime,
+    note: body.note ?? null, createdAt: now, updatedAt: now,
+  };
+  await db.insert(schema.scheduleSlots).values(newSlot);
+  return c.json(newSlot, 201);
+});
+
+// slot削除
+schedulesRouter.delete('/:id/slots/:slotId', async (c) => {
+  const { slotId } = c.req.param();
+  await db.delete(schema.scheduleSlots).where(eq(schema.scheduleSlots.id, slotId));
+  return c.json({ success: true });
 });
 
 schedulesRouter.delete('/:id', async (c) => {
