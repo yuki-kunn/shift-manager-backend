@@ -57,6 +57,10 @@ aiRouter.post('/generate-schedule', async (c) => {
 
   const minStaff = bh?.minStaff ?? 1;
 
+  const extraRules: string[] = [];
+  if (bh?.fixedPrompt) extraRules.push(`9. 【固定ルール】${bh.fixedPrompt}`);
+  if (note) extraRules.push(`${9 + (bh?.fixedPrompt ? 1 : 0)}. 【今回の追加指示】${note}`);
+
   const prompt = `あなたはシフト管理の専門家です。以下の条件に基づいて${year}年${month}月のシフト表を作成してください。
 
 ## 営業時間
@@ -77,7 +81,7 @@ ${JSON.stringify(employeeData, null, 2)}
 5. シフトは営業時間内のみ（開店〜閉店）
 6. 各従業員のタイプ（typeName）を参考にシフトの長さを調整する
 7. 希望のstartTime/endTimeがある場合はそれを使用
-8. シフト希望のnoteを考慮する${note ? `\n9. 【管理者からの追加指示】${note}` : ''}
+8. シフト希望のnoteを考慮する${extraRules.length > 0 ? '\n' + extraRules.join('\n') : ''}
 
 ## 出力形式（JSONのみ、説明文・マークダウン不要）
 {"slots":[{"employeeId":"...","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","note":"任意"}]}`;

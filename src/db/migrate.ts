@@ -50,6 +50,7 @@ export function migrate() {
       long_shift_threshold INTEGER NOT NULL DEFAULT 6,
       min_staff INTEGER NOT NULL DEFAULT 1,
       max_staff INTEGER NOT NULL DEFAULT 5,
+      fixed_prompt TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -99,6 +100,7 @@ export function migrate() {
   addColumnIfMissing('employees', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
   addColumnIfMissing('business_hours', 'min_staff', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfMissing('business_hours', 'max_staff', 'INTEGER NOT NULL DEFAULT 5');
+  addColumnIfMissing('business_hours', 'fixed_prompt', 'TEXT');
   addColumnIfMissing('business_hours', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
   addColumnIfMissing('schedules', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
 

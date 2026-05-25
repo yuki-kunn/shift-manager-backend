@@ -46,6 +46,7 @@ export const businessHours = sqliteTable('business_hours', {
   longShiftThreshold: integer('long_shift_threshold').notNull().default(6),
   minStaff: integer('min_staff').notNull().default(1),
   maxStaff: integer('max_staff').notNull().default(5),
+  fixedPrompt: text('fixed_prompt'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
