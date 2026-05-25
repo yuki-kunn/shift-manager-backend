@@ -49,6 +49,7 @@ export function migrate() {
       close_time TEXT NOT NULL DEFAULT '21:00',
       long_shift_threshold INTEGER NOT NULL DEFAULT 6,
       min_staff INTEGER NOT NULL DEFAULT 1,
+      max_staff INTEGER NOT NULL DEFAULT 5,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -97,6 +98,7 @@ export function migrate() {
   addColumnIfMissing('employees', 'priority', `TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high','medium','low'))`);
   addColumnIfMissing('employees', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
   addColumnIfMissing('business_hours', 'min_staff', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfMissing('business_hours', 'max_staff', 'INTEGER NOT NULL DEFAULT 5');
   addColumnIfMissing('business_hours', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
   addColumnIfMissing('schedules', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
 

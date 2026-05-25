@@ -34,6 +34,7 @@ settingsRouter.put('/business-hours', async (c) => {
       closeTime: body.closeTime,
       longShiftThreshold: body.longShiftThreshold,
       minStaff: body.minStaff ?? 1,
+      maxStaff: body.maxStaff ?? 5,
       updatedAt: now,
     })
     .where(eq(schema.businessHours.facilityId, facilityId));

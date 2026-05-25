@@ -63,6 +63,7 @@ aiRouter.post('/generate-schedule', async (c) => {
 開店: ${bh?.openTime ?? '09:00'}  閉店: ${bh?.closeTime ?? '21:00'}
 ロングシフト基準: ${bh?.longShiftThreshold ?? 6}時間以上
 最低同時勤務人数: ${minStaff}人（営業開始から営業終了まで、常に${minStaff}人以上が同時に勤務している状態を維持すること）
+最高同時勤務人数: ${bh?.maxStaff ?? 5}人（同時に勤務する人数はこの人数を超えないこと）
 
 ## 従業員データ（優先度順に配置）
 ${JSON.stringify(employeeData, null, 2)}
@@ -70,6 +71,7 @@ ${JSON.stringify(employeeData, null, 2)}
 ## ルール（上から順に厳守）
 1. available=false の日は絶対に入れない
 2. 営業開始（${bh?.openTime ?? '09:00'}）から営業終了（${bh?.closeTime ?? '21:00'}）まで、どの時点においても必ず${minStaff}人以上が同時に勤務していること
+2b. 同時勤務人数が最高同時勤務人数（${bh?.maxStaff ?? 5}人）を超えないこと
 3. 優先度「高」の従業員から先にシフトを埋める。優先度「低」は他に人員が足りているときのみ追加する
 4. availableDaysThisMonth（出勤可能日数）が少ない従業員ほど、その出勤可能な日にシフトを優先的に割り当てる
 5. シフトは営業時間内のみ（開店〜閉店）
