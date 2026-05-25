@@ -17,11 +17,20 @@ export const facilities = sqliteTable('facilities', {
   updatedAt: text('updated_at').notNull(),
 });
 
+export const employeeTypes = sqliteTable('employee_types', {
+  id: text('id').primaryKey(),
+  facilityId: text('facility_id').notNull().default('default'),
+  name: text('name').notNull(),
+  color: text('color').notNull().default('#6366f1'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
 export const employees = sqliteTable('employees', {
   id: text('id').primaryKey(),
   facilityId: text('facility_id').notNull().default('default'),
   name: text('name').notNull(),
-  type: text('type', { enum: ['contract', 'intern', 'part'] }).notNull(),
+  type: text('type').notNull().default('part'),
   hourlyWage: integer('hourly_wage').notNull().default(1177),
   color: text('color').notNull().default('#6366f1'),
   priority: text('priority', { enum: ['high', 'medium', 'low'] }).notNull().default('medium'),

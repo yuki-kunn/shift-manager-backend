@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { db, schema } from '../db/index.js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { requireFacility, type Env } from '../lib/auth.js';
 import { randomUUID } from 'crypto';
 
@@ -39,4 +39,45 @@ settingsRouter.put('/business-hours', async (c) => {
     .where(eq(schema.businessHours.facilityId, facilityId));
   const [updated] = await db.select().from(schema.businessHours).where(eq(schema.businessHours.facilityId, facilityId));
   return c.json(updated);
+});
+
+settingsRouter.get('/employee-types', async (c) => {
+  const { facilityId } = c.get('auth') as { facilityId: string };
+  const list = await db.select().from(schema.employeeTypes).where(eq(schema.employeeTypes.facilityId, facilityId));
+  return c.json(list);
+});
+
+settingsRouter.post('/employee-types', async (c) => {
+  const { facilityId } = c.get('auth') as { facilityId: string };
+  const body = await c.req.json();
+  const now = new Date().toISOString();
+  const newType = {
+    id: randomUUID(),
+    facilityId,
+    name: body.name,
+    color: body.color ?? '#6366f1',
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.insert(schema.employeeTypes).values(newType);
+  return c.json(newType, 201);
+});
+
+settingsRouter.put('/employee-types/:id', async (c) => {
+  const { facilityId } = c.get('auth') as { facilityId: string };
+  const id = c.req.param('id');
+  const body = await c.req.json();
+  const now = new Date().toISOString();
+  await db.update(schema.employeeTypes)
+    .set({ name: body.name, color: body.color, updatedAt: now })
+    .where(and(eq(schema.employeeTypes.id, id), eq(schema.employeeTypes.facilityId, facilityId)));
+  const [updated] = await db.select().from(schema.employeeTypes).where(eq(schema.employeeTypes.id, id));
+  return c.json(updated);
+});
+
+settingsRouter.delete('/employee-types/:id', async (c) => {
+  const { facilityId } = c.get('auth') as { facilityId: string };
+  await db.delete(schema.employeeTypes)
+    .where(and(eq(schema.employeeTypes.id, c.req.param('id')), eq(schema.employeeTypes.facilityId, facilityId)));
+  return c.json({ success: true });
 });

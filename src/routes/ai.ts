@@ -34,6 +34,9 @@ aiRouter.post('/generate-schedule', async (c) => {
     and(eq(schema.shiftRequests.year, year), eq(schema.shiftRequests.month, month))
   );
 
+  const employeeTypesList = await db.select().from(schema.employeeTypes).where(eq(schema.employeeTypes.facilityId, facilityId));
+  const typeMap = new Map(employeeTypesList.map(t => [t.name, t.name]));
+
   const employeeData = employees.map(emp => {
     const empRequests = requests.filter(r => r.employeeId === emp.id);
     const availableDays = empRequests.filter(r => r.isAvailable).length;
@@ -41,6 +44,7 @@ aiRouter.post('/generate-schedule', async (c) => {
       id: emp.id,
       name: emp.name,
       type: emp.type,
+      typeName: emp.type,
       hourlyWage: emp.hourlyWage,
       priority: emp.priority,
       priorityLabel: PRIORITY_LABELS[emp.priority] ?? '中',
@@ -69,10 +73,9 @@ ${JSON.stringify(employeeData, null, 2)}
 3. 優先度「高」の従業員から先にシフトを埋める。優先度「低」は他に人員が足りているときのみ追加する
 4. availableDaysThisMonth（出勤可能日数）が少ない従業員ほど、その出勤可能な日にシフトを優先的に割り当てる
 5. シフトは営業時間内のみ（開店〜閉店）
-6. インターン・パートの月収: 30,000〜50,000円（時給${employees[0]?.hourlyWage ?? 1177}円） → 月25.6〜42.6時間
-7. 契約社員はロング（${bh?.longShiftThreshold ?? 6}時間以上）優先
-8. 希望のstartTime/endTimeがある場合はそれを使用
-9. シフト希望のnoteを考慮する${note ? `\n10. 【管理者からの追加指示】${note}` : ''}
+6. 各従業員のタイプ（typeName）を参考にシフトの長さを調整する
+7. 希望のstartTime/endTimeがある場合はそれを使用
+8. シフト希望のnoteを考慮する${note ? `\n9. 【管理者からの追加指示】${note}` : ''}
 
 ## 出力形式（JSONのみ、説明文・マークダウン不要）
 {"slots":[{"employeeId":"...","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","note":"任意"}]}`;

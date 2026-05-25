@@ -23,11 +23,19 @@ export function migrate() {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS employee_types (
+      id TEXT PRIMARY KEY,
+      facility_id TEXT NOT NULL DEFAULT 'default',
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#6366f1',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS employees (
       id TEXT PRIMARY KEY,
       facility_id TEXT NOT NULL DEFAULT 'default',
       name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('contract','intern','part')),
+      type TEXT NOT NULL DEFAULT 'part',
       hourly_wage INTEGER NOT NULL DEFAULT 1177,
       color TEXT NOT NULL DEFAULT '#6366f1',
       priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high','medium','low')),
@@ -122,6 +130,21 @@ export function migrate() {
     sqlite.prepare(
       `INSERT INTO business_hours (id, facility_id, open_time, close_time, long_shift_threshold, min_staff, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`
     ).run('default', 'default', '09:00', '21:00', 6, 1, now, now);
+  }
+
+  // 従業員タイプの初期データ
+  const etCount = sqlite.prepare('SELECT COUNT(*) as c FROM employee_types').get() as { c: number };
+  if (etCount.c === 0) {
+    const seedTypes = [
+      { id: randomUUID(), facilityId: 'default', name: '契約社員', color: '#3b82f6', createdAt: now, updatedAt: now },
+      { id: randomUUID(), facilityId: 'default', name: 'インターン', color: '#10b981', createdAt: now, updatedAt: now },
+      { id: randomUUID(), facilityId: 'default', name: 'パート', color: '#f59e0b', createdAt: now, updatedAt: now },
+    ];
+    for (const t of seedTypes) {
+      sqlite.prepare(
+        `INSERT INTO employee_types (id, facility_id, name, color, created_at, updated_at) VALUES (?,?,?,?,?,?)`
+      ).run(t.id, t.facilityId, t.name, t.color, t.createdAt, t.updatedAt);
+    }
   }
 
   // admin初期アカウント
