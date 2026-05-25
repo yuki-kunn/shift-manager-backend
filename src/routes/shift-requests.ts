@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { db, schema } from '../db/index.js';
+import { db, sqlite, schema } from '../db/index.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { requireFacility, type Env } from '../lib/auth.js';
@@ -28,37 +28,39 @@ shiftRequestsRouter.post('/bulk', async (c) => {
     isAvailable?: boolean; note?: string | null;
   }> = await c.req.json();
   const now = new Date().toISOString();
-  const results = [];
-  for (const item of items) {
-    const [existing] = await db.select().from(schema.shiftRequests).where(and(
-      eq(schema.shiftRequests.employeeId, item.employeeId),
-      eq(schema.shiftRequests.year, item.year),
-      eq(schema.shiftRequests.month, item.month),
-      eq(schema.shiftRequests.day, item.day),
-    ));
-    if (existing) {
-      await db.update(schema.shiftRequests).set({
-        startTime: item.startTime ?? null,
-        endTime: item.endTime ?? null,
-        isAvailable: item.isAvailable ?? true,
-        note: item.note ?? null,
-        updatedAt: now,
-      }).where(eq(schema.shiftRequests.id, existing.id));
-      const [updated] = await db.select().from(schema.shiftRequests).where(eq(schema.shiftRequests.id, existing.id));
-      results.push(updated);
-    } else {
-      const newReq = {
-        id: randomUUID(), employeeId: item.employeeId,
-        year: item.year, month: item.month, day: item.day,
-        startTime: item.startTime ?? null, endTime: item.endTime ?? null,
-        isAvailable: item.isAvailable ?? true, note: item.note ?? null,
-        createdAt: now, updatedAt: now,
-      };
-      await db.insert(schema.shiftRequests).values(newReq);
-      results.push(newReq);
-    }
-  }
-  return c.json(results, 201);
+
+  const upsert = sqlite.prepare(`
+    INSERT INTO shift_requests (id, employee_id, year, month, day, start_time, end_time, is_available, note, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(employee_id, year, month, day) DO UPDATE SET
+      start_time=excluded.start_time,
+      end_time=excluded.end_time,
+      is_available=excluded.is_available,
+      note=excluded.note,
+      updated_at=excluded.updated_at
+  `);
+
+  const insertMany = sqlite.transaction((rows: unknown[][]) => {
+    for (const row of rows) upsert.run(...row);
+  });
+
+  const rows = items.map(item => [
+    randomUUID(),
+    item.employeeId,
+    item.year,
+    item.month,
+    item.day,
+    item.startTime ?? null,
+    item.endTime ?? null,
+    (item.isAvailable ?? true) ? 1 : 0,
+    item.note ?? null,
+    now,
+    now,
+  ]);
+
+  insertMany(rows);
+
+  return c.json(items, 201);
 });
 
 shiftRequestsRouter.put('/:id', async (c) => {

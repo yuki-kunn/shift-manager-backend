@@ -92,6 +92,20 @@ export function migrate() {
   addColumnIfMissing('business_hours', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
   addColumnIfMissing('schedules', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
 
+  // shift_requests の複合UNIQUEインデックス（INSERT OR REPLACE用）
+  const addIndexIfMissing = (indexName: string, ddl: string) => {
+    const exists = sqlite.prepare(
+      `SELECT name FROM sqlite_master WHERE type='index' AND name=?`
+    ).get(indexName);
+    if (!exists) {
+      sqlite.exec(ddl);
+    }
+  };
+  addIndexIfMissing(
+    'idx_shift_requests_unique',
+    `CREATE UNIQUE INDEX idx_shift_requests_unique ON shift_requests(employee_id, year, month, day)`
+  );
+
   const now = new Date().toISOString();
 
   // デフォルト施設（既存データの移行先）
