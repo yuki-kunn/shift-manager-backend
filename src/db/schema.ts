@@ -22,7 +22,7 @@ export const employees = sqliteTable('employees', {
   facilityId: text('facility_id').notNull().default('default'),
   name: text('name').notNull(),
   type: text('type', { enum: ['contract', 'intern', 'part'] }).notNull(),
-  hourlyWage: integer('hourly_wage').notNull().default(1173),
+  hourlyWage: integer('hourly_wage').notNull().default(1177),
   color: text('color').notNull().default('#6366f1'),
   priority: text('priority', { enum: ['high', 'medium', 'low'] }).notNull().default('medium'),
   createdAt: text('created_at').notNull(),

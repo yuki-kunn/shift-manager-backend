@@ -26,7 +26,7 @@ employeesRouter.post('/', async (c) => {
     facilityId,
     name: body.name,
     type: body.type,
-    hourlyWage: body.hourlyWage ?? 1173,
+    hourlyWage: body.hourlyWage ?? 1177,
     color: body.color ?? generateColor(),
     priority: body.priority ?? 'medium',
     createdAt: now,

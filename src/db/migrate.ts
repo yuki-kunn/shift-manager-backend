@@ -28,7 +28,7 @@ export function migrate() {
       facility_id TEXT NOT NULL DEFAULT 'default',
       name TEXT NOT NULL,
       type TEXT NOT NULL CHECK(type IN ('contract','intern','part')),
-      hourly_wage INTEGER NOT NULL DEFAULT 1173,
+      hourly_wage INTEGER NOT NULL DEFAULT 1177,
       color TEXT NOT NULL DEFAULT '#6366f1',
       priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high','medium','low')),
       created_at TEXT NOT NULL,
