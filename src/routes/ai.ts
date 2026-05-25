@@ -17,7 +17,19 @@ aiRouter.post('/generate-schedule', async (c) => {
   const { year, month, note } = await c.req.json();
 
   const employees = await db.select().from(schema.employees).where(eq(schema.employees.facilityId, facilityId));
-  const [bh] = await db.select().from(schema.businessHours).where(eq(schema.businessHours.facilityId, facilityId));
+  if (employees.length === 0) {
+    return c.json({ error: '従業員が登録されていません' }, 400);
+  }
+
+  let [bh] = await db.select().from(schema.businessHours).where(eq(schema.businessHours.facilityId, facilityId));
+  if (!bh) {
+    const { randomUUID: uuid } = await import('crypto');
+    const now2 = new Date().toISOString();
+    const newBh = { id: uuid(), facilityId, openTime: '09:00', closeTime: '21:00', longShiftThreshold: 6, minStaff: 1, createdAt: now2, updatedAt: now2 };
+    await db.insert(schema.businessHours).values(newBh);
+    bh = newBh as typeof bh;
+  }
+
   const requests = await db.select().from(schema.shiftRequests).where(
     and(eq(schema.shiftRequests.year, year), eq(schema.shiftRequests.month, month))
   );
@@ -102,7 +114,10 @@ ${JSON.stringify(employeeData, null, 2)}
   const scheduleId = randomUUID();
   await db.insert(schema.schedules).values({ id: scheduleId, facilityId, year, month, status: 'draft', createdAt: now, updatedAt: now });
 
+  const employeeIds = new Set(employees.map(e => e.id));
   for (const slot of slots) {
+    if (!employeeIds.has(slot.employeeId)) continue;
+    if (!slot.date || !slot.startTime || !slot.endTime) continue;
     await db.insert(schema.scheduleSlots).values({
       id: randomUUID(), scheduleId,
       employeeId: slot.employeeId, date: slot.date,
