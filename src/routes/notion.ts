@@ -4,6 +4,12 @@ import { requireFacility, type Env } from '../lib/auth.js';
 export const notionRouter = new Hono<Env>();
 notionRouter.use('*', requireFacility);
 
+const NOTION_HEADERS = (token: string) => ({
+  'Authorization': `Bearer ${token}`,
+  'Content-Type': 'application/json',
+  'Notion-Version': '2022-06-28',
+});
+
 notionRouter.post('/pages', async (c) => {
   const token = process.env.NOTION_TOKEN;
   if (!token) return c.json({ error: 'NOTION_TOKEN not set' }, 500);
@@ -11,14 +17,27 @@ notionRouter.post('/pages', async (c) => {
   const body = await c.req.json();
   const res = await fetch('https://api.notion.com/v1/pages', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'Notion-Version': '2022-06-28',
-    },
+    headers: NOTION_HEADERS(token),
     body: JSON.stringify(body),
   });
   const data = await res.json();
   if (!res.ok) return c.json(data, res.status as any);
   return c.json(data, 201);
+});
+
+// ブロック追加（100件超のシフトを複数リクエストに分割して追加）
+notionRouter.post('/blocks/:pageId/children', async (c) => {
+  const token = process.env.NOTION_TOKEN;
+  if (!token) return c.json({ error: 'NOTION_TOKEN not set' }, 500);
+
+  const pageId = c.req.param('pageId');
+  const body = await c.req.json();
+  const res = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+    method: 'PATCH',
+    headers: NOTION_HEADERS(token),
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) return c.json(data, res.status as any);
+  return c.json(data);
 });
