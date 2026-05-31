@@ -77,6 +77,25 @@ export const schedules = sqliteTable('schedules', {
   updatedAt: text('updated_at').notNull(),
 });
 
+export const events = sqliteTable('events', {
+  id: text('id').primaryKey(),
+  facilityId: text('facility_id').notNull().default('default'),
+  date: text('date').notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  color: text('color').notNull().default('#6366f1'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const eventEmployees = sqliteTable('event_employees', {
+  id: text('id').primaryKey(),
+  eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+  note: text('note'),
+  createdAt: text('created_at').notNull(),
+});
+
 export const scheduleSlots = sqliteTable('schedule_slots', {
   id: text('id').primaryKey(),
   scheduleId: text('schedule_id').notNull().references(() => schedules.id, { onDelete: 'cascade' }),

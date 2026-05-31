@@ -11,6 +11,7 @@ import { aiRouter } from './routes/ai.js';
 import { authRouter } from './routes/auth.js';
 import { adminRouter } from './routes/admin.js';
 import { notionRouter } from './routes/notion.js';
+import { eventsRouter } from './routes/events.js';
 import { migrate } from './db/migrate.js';
 
 migrate();
@@ -43,6 +44,7 @@ app.route('/api/shift-requests', shiftRequestsRouter);
 app.route('/api/schedules', schedulesRouter);
 app.route('/api/ai', aiRouter);
 app.route('/api/notion', notionRouter);
+app.route('/api/events', eventsRouter);
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
 const port = parseInt(process.env.PORT ?? '3001');

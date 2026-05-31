@@ -100,6 +100,27 @@ export function migrate() {
   addColumnIfMissing('employees', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
   addColumnIfMissing('employees', 'income_lower', 'INTEGER');
   addColumnIfMissing('employees', 'income_upper', 'INTEGER');
+
+  // イベントテーブル
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS events (
+      id TEXT PRIMARY KEY,
+      facility_id TEXT NOT NULL DEFAULT 'default',
+      date TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      color TEXT NOT NULL DEFAULT '#6366f1',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS event_employees (
+      id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      employee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      note TEXT,
+      created_at TEXT NOT NULL
+    );
+  `);
   addColumnIfMissing('business_hours', 'min_staff', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfMissing('business_hours', 'max_staff', 'INTEGER NOT NULL DEFAULT 5');
   addColumnIfMissing('business_hours', 'fixed_prompt', 'TEXT');
