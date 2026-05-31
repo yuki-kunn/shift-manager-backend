@@ -37,6 +37,31 @@ aiRouter.post('/generate-schedule', async (c) => {
   const employeeTypesList = await db.select().from(schema.employeeTypes).where(eq(schema.employeeTypes.facilityId, facilityId));
   const typeMap = new Map(employeeTypesList.map(t => [t.name, t.name]));
 
+  // イベントアサイン済みスタッフを取得
+  const y = String(year).padStart(4, '0');
+  const m = String(month).padStart(2, '0');
+  const monthPrefix = `${y}-${m}`;
+  const allEvents = await db.select().from(schema.events)
+    .where(eq(schema.events.facilityId, facilityId));
+  const monthEvents = allEvents.filter(e => e.date.startsWith(monthPrefix));
+  // 各イベントのメンバー（強制スロット）を収集
+  interface ForcedSlot { employeeId: string; date: string; startTime: string; endTime: string; }
+  const forcedSlots: ForcedSlot[] = [];
+  for (const ev of monthEvents) {
+    const members = await db.select().from(schema.eventEmployees)
+      .where(eq(schema.eventEmployees.eventId, ev.id));
+    for (const mem of members) {
+      if (mem.startTime && mem.endTime) {
+        forcedSlots.push({
+          employeeId: mem.employeeId,
+          date: ev.date,
+          startTime: mem.startTime,
+          endTime: mem.endTime,
+        });
+      }
+    }
+  }
+
   const employeeData = employees.map(emp => {
     const empRequests = requests.filter(r => r.employeeId === emp.id);
     const availableDays = empRequests.filter(r => r.isAvailable).length;
@@ -58,8 +83,15 @@ aiRouter.post('/generate-schedule', async (c) => {
   const minStaff = bh?.minStaff ?? 1;
 
   const extraRules: string[] = [];
-  if (bh?.fixedPrompt) extraRules.push(`9. 【固定ルール】${bh.fixedPrompt}`);
-  if (note) extraRules.push(`${9 + (bh?.fixedPrompt ? 1 : 0)}. 【今回の追加指示】${note}`);
+  if (forcedSlots.length > 0) {
+    const forcedDesc = forcedSlots.map(fs => {
+      const emp = employees.find(e => e.id === fs.employeeId);
+      return `  - ${emp?.name ?? fs.employeeId}（id:${fs.employeeId}） ${fs.date} ${fs.startTime}〜${fs.endTime}`;
+    }).join('\n');
+    extraRules.push(`9. 【イベント強制アサイン】以下のスタッフは指定日・指定時間で必ずシフトに含めること（変更・省略不可）:\n${forcedDesc}`);
+  }
+  if (bh?.fixedPrompt) extraRules.push(`${9 + (forcedSlots.length > 0 ? 1 : 0)}. 【固定ルール】${bh.fixedPrompt}`);
+  if (note) extraRules.push(`${9 + (forcedSlots.length > 0 ? 1 : 0) + (bh?.fixedPrompt ? 1 : 0)}. 【今回の追加指示】${note}`);
 
   const prompt = `あなたはシフト管理の専門家です。以下の条件に基づいて${year}年${month}月のシフト表を作成してください。
 
@@ -124,9 +156,24 @@ ${JSON.stringify(employeeData, null, 2)}
   await db.insert(schema.schedules).values({ id: scheduleId, facilityId, year, month, status: 'draft', createdAt: now, updatedAt: now });
 
   const employeeIds = new Set(employees.map(e => e.id));
+
+  // 強制アサインスロットをAIスロットにマージ（同一employee+dateはAIを上書き）
+  const slotMap = new Map<string, typeof slots[number]>();
   for (const slot of slots) {
     if (!employeeIds.has(slot.employeeId)) continue;
     if (!slot.date || !slot.startTime || !slot.endTime) continue;
+    slotMap.set(`${slot.employeeId}:${slot.date}`, slot);
+  }
+  for (const fs of forcedSlots) {
+    if (!employeeIds.has(fs.employeeId)) continue;
+    slotMap.set(`${fs.employeeId}:${fs.date}`, {
+      employeeId: fs.employeeId, date: fs.date,
+      startTime: fs.startTime, endTime: fs.endTime,
+      note: 'イベントアサイン',
+    });
+  }
+
+  for (const slot of slotMap.values()) {
     await db.insert(schema.scheduleSlots).values({
       id: randomUUID(), scheduleId,
       employeeId: slot.employeeId, date: slot.date,

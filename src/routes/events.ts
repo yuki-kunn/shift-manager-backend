@@ -34,6 +34,8 @@ eventsRouter.get('/', async (c) => {
       eventId: schema.eventEmployees.eventId,
       employeeId: schema.eventEmployees.employeeId,
       note: schema.eventEmployees.note,
+      startTime: schema.eventEmployees.startTime,
+      endTime: schema.eventEmployees.endTime,
       createdAt: schema.eventEmployees.createdAt,
     }).from(schema.eventEmployees)
       .where(eq(schema.eventEmployees.eventId, event.id));
@@ -72,7 +74,15 @@ eventsRouter.put('/:id', async (c) => {
     .set({ title: body.title, description: body.description ?? null, color: body.color, date: body.date, updatedAt: now })
     .where(and(eq(schema.events.id, id), eq(schema.events.facilityId, facilityId)));
   const [updated] = await db.select().from(schema.events).where(eq(schema.events.id, id));
-  const members = await db.select().from(schema.eventEmployees).where(eq(schema.eventEmployees.eventId, id));
+  const members = await db.select({
+    id: schema.eventEmployees.id,
+    eventId: schema.eventEmployees.eventId,
+    employeeId: schema.eventEmployees.employeeId,
+    note: schema.eventEmployees.note,
+    startTime: schema.eventEmployees.startTime,
+    endTime: schema.eventEmployees.endTime,
+    createdAt: schema.eventEmployees.createdAt,
+  }).from(schema.eventEmployees).where(eq(schema.eventEmployees.eventId, id));
   return c.json({ ...updated, members });
 });
 
@@ -101,6 +111,8 @@ eventsRouter.post('/:id/members', async (c) => {
     eventId,
     employeeId: body.employeeId,
     note: body.note ?? null,
+    startTime: body.startTime ?? null,
+    endTime: body.endTime ?? null,
     createdAt: now,
   };
   await db.insert(schema.eventEmployees).values(member);

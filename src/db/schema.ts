@@ -93,6 +93,8 @@ export const eventEmployees = sqliteTable('event_employees', {
   eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
   employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
   note: text('note'),
+  startTime: text('start_time'),
+  endTime: text('end_time'),
   createdAt: text('created_at').notNull(),
 });
 

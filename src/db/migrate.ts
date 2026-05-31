@@ -121,6 +121,8 @@ export function migrate() {
       created_at TEXT NOT NULL
     );
   `);
+  addColumnIfMissing('event_employees', 'start_time', 'TEXT');
+  addColumnIfMissing('event_employees', 'end_time', 'TEXT');
   addColumnIfMissing('business_hours', 'min_staff', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfMissing('business_hours', 'max_staff', 'INTEGER NOT NULL DEFAULT 5');
   addColumnIfMissing('business_hours', 'fixed_prompt', 'TEXT');
