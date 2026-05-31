@@ -34,6 +34,8 @@ export const employees = sqliteTable('employees', {
   hourlyWage: integer('hourly_wage').notNull().default(1177),
   color: text('color').notNull().default('#6366f1'),
   priority: text('priority', { enum: ['high', 'medium', 'low'] }).notNull().default('medium'),
+  incomeLower: integer('income_lower'),
+  incomeUpper: integer('income_upper'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
