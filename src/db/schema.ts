@@ -84,6 +84,8 @@ export const events = sqliteTable('events', {
   title: text('title').notNull(),
   description: text('description'),
   color: text('color').notNull().default('#6366f1'),
+  startTime: text('start_time'),
+  endTime: text('end_time'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
@@ -93,8 +95,6 @@ export const eventEmployees = sqliteTable('event_employees', {
   eventId: text('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
   employeeId: text('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
   note: text('note'),
-  startTime: text('start_time'),
-  endTime: text('end_time'),
   createdAt: text('created_at').notNull(),
 });
 

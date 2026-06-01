@@ -51,6 +51,19 @@ schedulesRouter.post('/:id/slots', async (c) => {
   const scheduleId = c.req.param('id');
   const body = await c.req.json();
   const now = new Date().toISOString();
+
+  // 同一スケジュール内で同一従業員・同一日の重複チェック
+  const existing = await db.select().from(schema.scheduleSlots).where(
+    and(
+      eq(schema.scheduleSlots.scheduleId, scheduleId),
+      eq(schema.scheduleSlots.employeeId, body.employeeId),
+      eq(schema.scheduleSlots.date, body.date),
+    )
+  );
+  if (existing.length > 0) {
+    return c.json({ error: 'duplicate', message: 'この従業員はすでにこの日にシフトが登録されています' }, 409);
+  }
+
   const newSlot = {
     id: randomUUID(), scheduleId,
     employeeId: body.employeeId, date: body.date,

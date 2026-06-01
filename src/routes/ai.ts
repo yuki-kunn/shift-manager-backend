@@ -44,21 +44,20 @@ aiRouter.post('/generate-schedule', async (c) => {
   const allEvents = await db.select().from(schema.events)
     .where(eq(schema.events.facilityId, facilityId));
   const monthEvents = allEvents.filter(e => e.date.startsWith(monthPrefix));
-  // 各イベントのメンバー（強制スロット）を収集
+  // 各イベントのメンバー（強制スロット）を収集 — 時間はイベント側で管理
   interface ForcedSlot { employeeId: string; date: string; startTime: string; endTime: string; }
   const forcedSlots: ForcedSlot[] = [];
   for (const ev of monthEvents) {
+    if (!ev.startTime || !ev.endTime) continue; // 時間未設定のイベントはスキップ
     const members = await db.select().from(schema.eventEmployees)
       .where(eq(schema.eventEmployees.eventId, ev.id));
     for (const mem of members) {
-      if (mem.startTime && mem.endTime) {
-        forcedSlots.push({
-          employeeId: mem.employeeId,
-          date: ev.date,
-          startTime: mem.startTime,
-          endTime: mem.endTime,
-        });
-      }
+      forcedSlots.push({
+        employeeId: mem.employeeId,
+        date: ev.date,
+        startTime: ev.startTime,
+        endTime: ev.endTime,
+      });
     }
   }
 

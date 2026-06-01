@@ -18,9 +18,7 @@ eventsRouter.get('/', async (c) => {
     const m = month.padStart(2, '0');
     const prefix = `${y}-${m}`;
     events = await db.select().from(schema.events)
-      .where(and(
-        eq(schema.events.facilityId, facilityId),
-      ));
+      .where(eq(schema.events.facilityId, facilityId));
     events = events.filter(e => e.date.startsWith(prefix));
   } else {
     events = await db.select().from(schema.events)
@@ -34,8 +32,6 @@ eventsRouter.get('/', async (c) => {
       eventId: schema.eventEmployees.eventId,
       employeeId: schema.eventEmployees.employeeId,
       note: schema.eventEmployees.note,
-      startTime: schema.eventEmployees.startTime,
-      endTime: schema.eventEmployees.endTime,
       createdAt: schema.eventEmployees.createdAt,
     }).from(schema.eventEmployees)
       .where(eq(schema.eventEmployees.eventId, event.id));
@@ -57,6 +53,8 @@ eventsRouter.post('/', async (c) => {
     title: body.title,
     description: body.description ?? null,
     color: body.color ?? '#6366f1',
+    startTime: body.startTime ?? null,
+    endTime: body.endTime ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -71,7 +69,15 @@ eventsRouter.put('/:id', async (c) => {
   const body = await c.req.json();
   const now = new Date().toISOString();
   await db.update(schema.events)
-    .set({ title: body.title, description: body.description ?? null, color: body.color, date: body.date, updatedAt: now })
+    .set({
+      title: body.title,
+      description: body.description ?? null,
+      color: body.color,
+      date: body.date,
+      startTime: body.startTime ?? null,
+      endTime: body.endTime ?? null,
+      updatedAt: now,
+    })
     .where(and(eq(schema.events.id, id), eq(schema.events.facilityId, facilityId)));
   const [updated] = await db.select().from(schema.events).where(eq(schema.events.id, id));
   const members = await db.select({
@@ -79,8 +85,6 @@ eventsRouter.put('/:id', async (c) => {
     eventId: schema.eventEmployees.eventId,
     employeeId: schema.eventEmployees.employeeId,
     note: schema.eventEmployees.note,
-    startTime: schema.eventEmployees.startTime,
-    endTime: schema.eventEmployees.endTime,
     createdAt: schema.eventEmployees.createdAt,
   }).from(schema.eventEmployees).where(eq(schema.eventEmployees.eventId, id));
   return c.json({ ...updated, members });
@@ -111,8 +115,6 @@ eventsRouter.post('/:id/members', async (c) => {
     eventId,
     employeeId: body.employeeId,
     note: body.note ?? null,
-    startTime: body.startTime ?? null,
-    endTime: body.endTime ?? null,
     createdAt: now,
   };
   await db.insert(schema.eventEmployees).values(member);
