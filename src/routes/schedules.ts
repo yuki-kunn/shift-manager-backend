@@ -23,17 +23,23 @@ schedulesRouter.get('/', async (c) => {
 });
 
 schedulesRouter.get('/:id', async (c) => {
-  const [s] = await db.select().from(schema.schedules).where(eq(schema.schedules.id, c.req.param('id')));
+  const { facilityId } = c.get('auth') as { facilityId: string };
+  const [s] = await db.select().from(schema.schedules).where(
+    and(eq(schema.schedules.id, c.req.param('id')), eq(schema.schedules.facilityId, facilityId))
+  );
   if (!s) return c.json({ error: 'Not found' }, 404);
   const slots = await db.select().from(schema.scheduleSlots).where(eq(schema.scheduleSlots.scheduleId, s.id));
   return c.json({ ...s, slots });
 });
 
 schedulesRouter.put('/:id/slots/:slotId', async (c) => {
+  const { facilityId } = c.get('auth') as { facilityId: string };
   const { id: scheduleId, slotId } = c.req.param();
   const body = await c.req.json();
   const now = new Date().toISOString();
-  const [schedule] = await db.select().from(schema.schedules).where(eq(schema.schedules.id, scheduleId));
+  const [schedule] = await db.select().from(schema.schedules).where(
+    and(eq(schema.schedules.id, scheduleId), eq(schema.schedules.facilityId, facilityId))
+  );
   if (!schedule) return c.json({ error: 'Schedule not found' }, 404);
   await db.update(schema.scheduleSlots).set({
     startTime: body.startTime,
@@ -76,13 +82,24 @@ schedulesRouter.post('/:id/slots', async (c) => {
 
 // slot削除
 schedulesRouter.delete('/:id/slots/:slotId', async (c) => {
-  const { slotId } = c.req.param();
-  await db.delete(schema.scheduleSlots).where(eq(schema.scheduleSlots.id, slotId));
+  const { facilityId } = c.get('auth') as { facilityId: string };
+  const { id: scheduleId, slotId } = c.req.param();
+  // 自施設のスケジュールかを確認してからスロットを削除
+  const [schedule] = await db.select().from(schema.schedules).where(
+    and(eq(schema.schedules.id, scheduleId), eq(schema.schedules.facilityId, facilityId))
+  );
+  if (!schedule) return c.json({ error: 'Schedule not found' }, 404);
+  await db.delete(schema.scheduleSlots).where(
+    and(eq(schema.scheduleSlots.id, slotId), eq(schema.scheduleSlots.scheduleId, scheduleId))
+  );
   return c.json({ success: true });
 });
 
 schedulesRouter.delete('/:id', async (c) => {
-  const [s] = await db.select().from(schema.schedules).where(eq(schema.schedules.id, c.req.param('id')));
+  const { facilityId } = c.get('auth') as { facilityId: string };
+  const [s] = await db.select().from(schema.schedules).where(
+    and(eq(schema.schedules.id, c.req.param('id')), eq(schema.schedules.facilityId, facilityId))
+  );
   if (!s) return c.json({ error: 'Not found' }, 404);
   await db.delete(schema.schedules).where(eq(schema.schedules.id, c.req.param('id')));
   return c.json({ success: true });
