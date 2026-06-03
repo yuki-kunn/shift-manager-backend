@@ -97,6 +97,25 @@ eventsRouter.delete('/:id', async (c) => {
   return c.json({ success: true });
 });
 
+/** イベントの日付から year/month を取得してスケジュールを upsert し scheduleId を返す */
+async function getOrCreateSchedule(facilityId: string, date: string, now: string): Promise<string> {
+  const [y, m] = date.split('-').map(Number);
+  const [existing] = await db.select().from(schema.schedules).where(
+    and(
+      eq(schema.schedules.facilityId, facilityId),
+      eq(schema.schedules.year, y),
+      eq(schema.schedules.month, m),
+    )
+  );
+  if (existing) return existing.id;
+  const scheduleId = randomUUID();
+  await db.insert(schema.schedules).values({
+    id: scheduleId, facilityId, year: y, month: m,
+    status: 'draft', createdAt: now, updatedAt: now,
+  });
+  return scheduleId;
+}
+
 // イベントに従業員を追加
 eventsRouter.post('/:id/members', async (c) => {
   const { facilityId } = c.get('auth') as { facilityId: string };
@@ -117,6 +136,39 @@ eventsRouter.post('/:id/members', async (c) => {
     createdAt: now,
   };
   await db.insert(schema.eventEmployees).values(member);
+
+  // イベントにシフト時間が設定されている場合はスケジュールスロットを即時追加
+  if (event.startTime && event.endTime) {
+    const scheduleId = await getOrCreateSchedule(facilityId, event.date, now);
+    // 同日・同従業員の重複チェック（既存スロットがあれば上書き）
+    const [existingSlot] = await db.select().from(schema.scheduleSlots).where(
+      and(
+        eq(schema.scheduleSlots.scheduleId, scheduleId),
+        eq(schema.scheduleSlots.employeeId, body.employeeId),
+        eq(schema.scheduleSlots.date, event.date),
+      )
+    );
+    if (existingSlot) {
+      // 既存スロットをイベント時間で上書き
+      await db.update(schema.scheduleSlots).set({
+        startTime: event.startTime,
+        endTime: event.endTime,
+        note: `イベント: ${event.title}`,
+        updatedAt: now,
+      }).where(eq(schema.scheduleSlots.id, existingSlot.id));
+    } else {
+      await db.insert(schema.scheduleSlots).values({
+        id: randomUUID(), scheduleId,
+        employeeId: body.employeeId,
+        date: event.date,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        note: `イベント: ${event.title}`,
+        createdAt: now, updatedAt: now,
+      });
+    }
+  }
+
   return c.json(member, 201);
 });
 
@@ -130,6 +182,32 @@ eventsRouter.delete('/:id/members/:memberId', async (c) => {
     .where(and(eq(schema.events.id, eventId), eq(schema.events.facilityId, facilityId)));
   if (!event) return c.json({ error: 'Not found' }, 404);
 
+  // 削除するメンバーの employeeId を取得
+  const [member] = await db.select().from(schema.eventEmployees)
+    .where(eq(schema.eventEmployees.id, memberId));
+
   await db.delete(schema.eventEmployees).where(eq(schema.eventEmployees.id, memberId));
+
+  // 対応するスケジュールスロットも削除（イベント由来のもののみ）
+  if (member && event.startTime && event.endTime) {
+    const [y, m] = event.date.split('-').map(Number);
+    const [sched] = await db.select().from(schema.schedules).where(
+      and(
+        eq(schema.schedules.facilityId, facilityId),
+        eq(schema.schedules.year, y),
+        eq(schema.schedules.month, m),
+      )
+    );
+    if (sched) {
+      await db.delete(schema.scheduleSlots).where(
+        and(
+          eq(schema.scheduleSlots.scheduleId, sched.id),
+          eq(schema.scheduleSlots.employeeId, member.employeeId),
+          eq(schema.scheduleSlots.date, event.date),
+        )
+      );
+    }
+  }
+
   return c.json({ success: true });
 });
