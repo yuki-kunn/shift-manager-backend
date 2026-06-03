@@ -23,19 +23,18 @@ aiRouter.post('/generate-schedule', async (c) => {
 
   let [bh] = await db.select().from(schema.businessHours).where(eq(schema.businessHours.facilityId, facilityId));
   if (!bh) {
-    const { randomUUID: uuid } = await import('crypto');
     const now2 = new Date().toISOString();
-    const newBh = { id: uuid(), facilityId, openTime: '09:00', closeTime: '21:00', longShiftThreshold: 6, minStaff: 1, createdAt: now2, updatedAt: now2 };
+    const newBh = { id: randomUUID(), facilityId, openTime: '09:00', closeTime: '21:00', longShiftThreshold: 6, minStaff: 1, createdAt: now2, updatedAt: now2 };
     await db.insert(schema.businessHours).values(newBh);
     bh = newBh as typeof bh;
   }
 
-  const requests = await db.select().from(schema.shiftRequests).where(
+  // 自施設の従業員 ID に限定してシフト希望を取得（他施設のデータ混入防止）
+  const facilityEmployeeIds = new Set(employees.map(e => e.id));
+  const allRequests = await db.select().from(schema.shiftRequests).where(
     and(eq(schema.shiftRequests.year, year), eq(schema.shiftRequests.month, month))
   );
-
-  const employeeTypesList = await db.select().from(schema.employeeTypes).where(eq(schema.employeeTypes.facilityId, facilityId));
-  const typeMap = new Map(employeeTypesList.map(t => [t.name, t.name]));
+  const requests = allRequests.filter(r => facilityEmployeeIds.has(r.employeeId));
 
   // イベントアサイン済みスタッフを取得
   const y = String(year).padStart(4, '0');
@@ -82,15 +81,16 @@ aiRouter.post('/generate-schedule', async (c) => {
   const minStaff = bh?.minStaff ?? 1;
 
   const extraRules: string[] = [];
+  let ruleIdx = 9;
   if (forcedSlots.length > 0) {
     const forcedDesc = forcedSlots.map(fs => {
       const emp = employees.find(e => e.id === fs.employeeId);
       return `  - ${emp?.name ?? fs.employeeId}（id:${fs.employeeId}） ${fs.date} ${fs.startTime}〜${fs.endTime}`;
     }).join('\n');
-    extraRules.push(`9. 【イベント強制アサイン】以下のスタッフは指定日・指定時間で必ずシフトに含めること（変更・省略不可）:\n${forcedDesc}`);
+    extraRules.push(`${ruleIdx++}. 【イベント強制アサイン】以下のスタッフは指定日・指定時間で必ずシフトに含めること（変更・省略不可）:\n${forcedDesc}`);
   }
-  if (bh?.fixedPrompt) extraRules.push(`${9 + (forcedSlots.length > 0 ? 1 : 0)}. 【固定ルール】${bh.fixedPrompt}`);
-  if (note) extraRules.push(`${9 + (forcedSlots.length > 0 ? 1 : 0) + (bh?.fixedPrompt ? 1 : 0)}. 【今回の追加指示】${note}`);
+  if (bh?.fixedPrompt) extraRules.push(`${ruleIdx++}. 【固定ルール】${bh.fixedPrompt}`);
+  if (note) extraRules.push(`${ruleIdx++}. 【今回の追加指示】${note}`);
 
   const prompt = `あなたはシフト管理の専門家です。以下の条件に基づいて${year}年${month}月のシフト表を作成してください。
 

@@ -8,16 +8,36 @@ export const shiftRequestsRouter = new Hono<Env>();
 shiftRequestsRouter.use('*', requireFacility);
 
 shiftRequestsRouter.get('/', async (c) => {
+  const { facilityId } = c.get('auth') as { facilityId: string };
   const employeeId = c.req.query('employeeId');
   const year = c.req.query('year');
   const month = c.req.query('month');
-  const conditions = [];
-  if (employeeId) conditions.push(eq(schema.shiftRequests.employeeId, employeeId));
+
+  // 自施設の従業員 ID を取得してフィルタリングの基準とする
+  const facilityEmployees = await db.select({ id: schema.employees.id })
+    .from(schema.employees)
+    .where(eq(schema.employees.facilityId, facilityId));
+  const facilityEmployeeIds = facilityEmployees.map(e => e.id);
+
+  if (facilityEmployeeIds.length === 0) return c.json([]);
+
+  // 自施設の従業員のシフト希望のみ返す
+  const conditions: ReturnType<typeof eq>[] = [];
+  if (employeeId && facilityEmployeeIds.includes(employeeId)) {
+    conditions.push(eq(schema.shiftRequests.employeeId, employeeId));
+  } else if (employeeId) {
+    // 指定された employeeId が自施設に属さない場合は空を返す
+    return c.json([]);
+  }
   if (year) conditions.push(eq(schema.shiftRequests.year, parseInt(year)));
   if (month) conditions.push(eq(schema.shiftRequests.month, parseInt(month)));
-  const list = conditions.length > 0
+
+  const allRequests = conditions.length > 0
     ? await db.select().from(schema.shiftRequests).where(and(...conditions))
     : await db.select().from(schema.shiftRequests);
+
+  // 自施設の従業員に絞り込む
+  const list = allRequests.filter(r => facilityEmployeeIds.includes(r.employeeId));
   return c.json(list);
 });
 

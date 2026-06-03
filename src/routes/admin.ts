@@ -15,9 +15,7 @@ adminRouter.get('/facilities', async (c) => {
     name: schema.facilities.name,
     username: schema.facilities.username,
     createdAt: schema.facilities.createdAt,
-  }).from(schema.facilities).where(
-    eq(schema.facilities.id, schema.facilities.id) // all rows (no filter on 'default' to show all)
-  );
+  }).from(schema.facilities);
   return c.json(list);
 });
 

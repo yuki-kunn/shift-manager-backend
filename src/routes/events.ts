@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { db, schema } from '../db/index.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, like } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { requireFacility, type Env } from '../lib/auth.js';
 
@@ -16,10 +16,9 @@ eventsRouter.get('/', async (c) => {
   if (year && month) {
     const y = year.padStart(4, '0');
     const m = month.padStart(2, '0');
-    const prefix = `${y}-${m}`;
+    const prefix = `${y}-${m}-%`;
     events = await db.select().from(schema.events)
-      .where(eq(schema.events.facilityId, facilityId));
-    events = events.filter(e => e.date.startsWith(prefix));
+      .where(and(eq(schema.events.facilityId, facilityId), like(schema.events.date, prefix)));
   } else {
     events = await db.select().from(schema.events)
       .where(eq(schema.events.facilityId, facilityId));

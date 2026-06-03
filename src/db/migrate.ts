@@ -2,6 +2,9 @@ import { sqlite } from './index.js';
 import { randomUUID } from 'crypto';
 import { createHash } from 'crypto';
 
+// NOTE: auth.ts にも同名の hashPassword が定義されている。
+// migrate.ts は `npx tsx` で独立実行されるため、auth.ts への依存を避けて
+// ここで直接定義している。実装を変更する場合は両方を同期させること。
 export function hashPassword(password: string): string {
   return createHash('sha256').update(password).digest('hex');
 }

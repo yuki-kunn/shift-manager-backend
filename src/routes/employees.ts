@@ -7,10 +7,6 @@ import { requireFacility, type Env } from '../lib/auth.js';
 export const employeesRouter = new Hono<Env>();
 employeesRouter.use('*', requireFacility);
 
-const COLORS = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ef4444','#14b8a6'];
-let colorIdx = 0;
-function generateColor() { return COLORS[colorIdx++ % COLORS.length]; }
-
 employeesRouter.get('/', async (c) => {
   const { facilityId } = c.get('auth') as { facilityId: string };
   const list = await db.select().from(schema.employees).where(eq(schema.employees.facilityId, facilityId));
@@ -28,7 +24,7 @@ employeesRouter.post('/', async (c) => {
     reading: body.reading ?? null,
     type: body.type,
     hourlyWage: body.hourlyWage ?? 1177,
-    color: body.color ?? generateColor(),
+    color: body.color ?? '#6366f1',
     priority: body.priority ?? 'medium',
     incomeLower: body.incomeLower ?? null,
     incomeUpper: body.incomeUpper ?? null,
