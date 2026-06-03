@@ -100,6 +100,7 @@ export function migrate() {
   addColumnIfMissing('employees', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
   addColumnIfMissing('employees', 'income_lower', 'INTEGER');
   addColumnIfMissing('employees', 'income_upper', 'INTEGER');
+  addColumnIfMissing('employees', 'reading', 'TEXT');
 
   // イベントテーブル
   sqlite.exec(`

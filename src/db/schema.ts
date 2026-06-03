@@ -30,6 +30,7 @@ export const employees = sqliteTable('employees', {
   id: text('id').primaryKey(),
   facilityId: text('facility_id').notNull().default('default'),
   name: text('name').notNull(),
+  reading: text('reading'),  // 読み仮名（任意）
   type: text('type').notNull().default('part'),
   hourlyWage: integer('hourly_wage').notNull().default(1177),
   color: text('color').notNull().default('#6366f1'),

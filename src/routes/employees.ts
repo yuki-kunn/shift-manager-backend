@@ -25,6 +25,7 @@ employeesRouter.post('/', async (c) => {
     id: randomUUID(),
     facilityId,
     name: body.name,
+    reading: body.reading ?? null,
     type: body.type,
     hourlyWage: body.hourlyWage ?? 1177,
     color: body.color ?? generateColor(),
