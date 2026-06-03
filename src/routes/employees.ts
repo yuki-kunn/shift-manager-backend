@@ -42,7 +42,17 @@ employeesRouter.put('/:id', async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
   const now = new Date().toISOString();
-  await db.update(schema.employees).set({ ...body, updatedAt: now })
+  // 許可するカラムのみホワイトリストで更新（余計なフィールドでDrizzleが500になるのを防ぐ）
+  const patch: Record<string, unknown> = { updatedAt: now };
+  if (body.name !== undefined) patch.name = body.name;
+  if (body.reading !== undefined) patch.reading = body.reading ?? null;
+  if (body.type !== undefined) patch.type = body.type;
+  if (body.hourlyWage !== undefined) patch.hourlyWage = body.hourlyWage;
+  if (body.color !== undefined) patch.color = body.color;
+  if (body.priority !== undefined) patch.priority = body.priority;
+  if (body.incomeLower !== undefined) patch.incomeLower = body.incomeLower ?? null;
+  if (body.incomeUpper !== undefined) patch.incomeUpper = body.incomeUpper ?? null;
+  await db.update(schema.employees).set(patch)
     .where(and(eq(schema.employees.id, id), eq(schema.employees.facilityId, facilityId)));
   const [updated] = await db.select().from(schema.employees).where(eq(schema.employees.id, id));
   return c.json(updated);
