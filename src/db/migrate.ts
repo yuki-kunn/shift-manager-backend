@@ -98,6 +98,32 @@ export function migrate() {
 
   addColumnIfMissing('employees', 'priority', `TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high','medium','low'))`);
   addColumnIfMissing('employees', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
+  addColumnIfMissing('employees', 'income_lower', 'INTEGER');
+  addColumnIfMissing('employees', 'income_upper', 'INTEGER');
+  addColumnIfMissing('employees', 'reading', 'TEXT');
+
+  // イベントテーブル
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS events (
+      id TEXT PRIMARY KEY,
+      facility_id TEXT NOT NULL DEFAULT 'default',
+      date TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      color TEXT NOT NULL DEFAULT '#6366f1',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS event_employees (
+      id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      employee_id TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      note TEXT,
+      created_at TEXT NOT NULL
+    );
+  `);
+  addColumnIfMissing('events', 'start_time', 'TEXT');
+  addColumnIfMissing('events', 'end_time', 'TEXT');
   addColumnIfMissing('business_hours', 'min_staff', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfMissing('business_hours', 'max_staff', 'INTEGER NOT NULL DEFAULT 5');
   addColumnIfMissing('business_hours', 'fixed_prompt', 'TEXT');
@@ -117,6 +143,50 @@ export function migrate() {
     'idx_shift_requests_unique',
     `CREATE UNIQUE INDEX idx_shift_requests_unique ON shift_requests(employee_id, year, month, day)`
   );
+
+  // employees.type の CHECK制約（'contract','intern','part'）を除去する
+  // SQLite は ALTER TABLE DROP CONSTRAINT が使えないためテーブルを再作成する
+  {
+    const empTableDef = sqlite.prepare(
+      `SELECT sql FROM sqlite_master WHERE type='table' AND name='employees'`
+    ).get() as { sql: string } | undefined;
+    if (empTableDef && /CHECK\s*\(\s*type\s+IN/i.test(empTableDef.sql)) {
+      sqlite.exec(`PRAGMA foreign_keys = OFF`);
+      sqlite.exec(`BEGIN`);
+      try {
+        sqlite.exec(`
+          CREATE TABLE employees_new (
+            id TEXT PRIMARY KEY,
+            facility_id TEXT NOT NULL DEFAULT 'default',
+            name TEXT NOT NULL,
+            reading TEXT,
+            type TEXT NOT NULL DEFAULT 'part',
+            hourly_wage INTEGER NOT NULL DEFAULT 1177,
+            color TEXT NOT NULL DEFAULT '#6366f1',
+            priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high','medium','low')),
+            income_lower INTEGER,
+            income_upper INTEGER,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          )
+        `);
+        sqlite.exec(`
+          INSERT INTO employees_new
+            SELECT id, facility_id, name, reading, type, hourly_wage, color, priority, income_lower, income_upper, created_at, updated_at
+            FROM employees
+        `);
+        sqlite.exec(`DROP TABLE employees`);
+        sqlite.exec(`ALTER TABLE employees_new RENAME TO employees`);
+        sqlite.exec(`COMMIT`);
+        console.log('[migrate] employees table recreated: removed CHECK(type IN ...) constraint');
+      } catch (e) {
+        sqlite.exec(`ROLLBACK`);
+        throw e;
+      } finally {
+        sqlite.exec(`PRAGMA foreign_keys = ON`);
+      }
+    }
+  }
 
   const now = new Date().toISOString();
 
