@@ -96,6 +96,7 @@ export function migrate() {
     const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     if (!cols.some(c => c.name === column)) {
       sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      console.log(`[migrate] Added column ${table}.${column}`);
     }
   };
 
