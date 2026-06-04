@@ -134,6 +134,20 @@ export function migrate() {
   addColumnIfMissing('business_hours', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
   addColumnIfMissing('schedules', 'facility_id', `TEXT NOT NULL DEFAULT 'default'`);
 
+  // 施設固有設定テーブル（Notion/CSV連携設定）
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS facility_settings (
+      id TEXT PRIMARY KEY,
+      facility_id TEXT NOT NULL UNIQUE,
+      notion_enabled INTEGER NOT NULL DEFAULT 0,
+      notion_database_id TEXT,
+      csv_enabled INTEGER NOT NULL DEFAULT 0,
+      smaregi_business_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
   // shift_requests の複合UNIQUEインデックス（INSERT OR REPLACE用）
   const addIndexIfMissing = (indexName: string, ddl: string) => {
     const exists = sqlite.prepare(

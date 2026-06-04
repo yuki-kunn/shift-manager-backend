@@ -83,3 +83,46 @@ settingsRouter.delete('/employee-types/:id', async (c) => {
     .where(and(eq(schema.employeeTypes.id, c.req.param('id')), eq(schema.employeeTypes.facilityId, facilityId)));
   return c.json({ success: true });
 });
+
+// 施設設定（連携機能）
+settingsRouter.get(`/facility`, async (c) => {
+  const { facilityId } = c.get(`auth`) as { facilityId: string };
+  let [s] = await db.select().from(schema.facilitySettings).where(eq(schema.facilitySettings.facilityId, facilityId));
+  if (!s) {
+    const now = new Date().toISOString();
+    const newS = { id: randomUUID(), facilityId, notionEnabled: false, notionDatabaseId: null, csvEnabled: false, smaregiBusinessId: null, createdAt: now, updatedAt: now };
+    await db.insert(schema.facilitySettings).values(newS);
+    s = newS as typeof s;
+  }
+  return c.json(s);
+});
+
+settingsRouter.put(`/facility`, async (c) => {
+  const { facilityId } = c.get(`auth`) as { facilityId: string };
+  const body = await c.req.json();
+  const now = new Date().toISOString();
+  // 存在しなければ作成
+  const [existing] = await db.select().from(schema.facilitySettings).where(eq(schema.facilitySettings.facilityId, facilityId));
+  if (!existing) {
+    await db.insert(schema.facilitySettings).values({
+      id: randomUUID(), facilityId,
+      notionEnabled: body.notionEnabled ?? false,
+      notionDatabaseId: body.notionDatabaseId ?? null,
+      csvEnabled: body.csvEnabled ?? false,
+      smaregiBusinessId: body.smaregiBusinessId ?? null,
+      createdAt: now, updatedAt: now,
+    });
+  } else {
+    await db.update(schema.facilitySettings)
+      .set({
+        notionEnabled: body.notionEnabled ?? false,
+        notionDatabaseId: body.notionDatabaseId ?? null,
+        csvEnabled: body.csvEnabled ?? false,
+        smaregiBusinessId: body.smaregiBusinessId ?? null,
+        updatedAt: now,
+      })
+      .where(eq(schema.facilitySettings.facilityId, facilityId));
+  }
+  const [updated] = await db.select().from(schema.facilitySettings).where(eq(schema.facilitySettings.facilityId, facilityId));
+  return c.json(updated);
+});

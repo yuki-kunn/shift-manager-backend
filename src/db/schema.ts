@@ -110,3 +110,16 @@ export const scheduleSlots = sqliteTable('schedule_slots', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+export const facilitySettings = sqliteTable(`facility_settings`, {
+  id: text(`id`).primaryKey(),
+  facilityId: text(`facility_id`).notNull().unique(),
+  // Notion 連携
+  notionEnabled: integer(`notion_enabled`, { mode: `boolean` }).notNull().default(false),
+  notionDatabaseId: text(`notion_database_id`),
+  // CSV エクスポート（Smaregi タイムカード）
+  csvEnabled: integer(`csv_enabled`, { mode: `boolean` }).notNull().default(false),
+  smaregiBusinessId: text(`smaregi_business_id`),
+  createdAt: text(`created_at`).notNull(),
+  updatedAt: text(`updated_at`).notNull(),
+});
