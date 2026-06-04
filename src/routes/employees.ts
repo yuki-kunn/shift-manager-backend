@@ -28,6 +28,7 @@ employeesRouter.post('/', async (c) => {
     priority: body.priority ?? 'medium',
     incomeLower: body.incomeLower ?? null,
     incomeUpper: body.incomeUpper ?? null,
+    smaregiEmployeeId: body.smaregiEmployeeId ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -50,6 +51,7 @@ employeesRouter.put('/:id', async (c) => {
     ...(body.priority !== undefined && { priority: body.priority }),
     ...(body.incomeLower !== undefined && { incomeLower: body.incomeLower ?? null }),
     ...(body.incomeUpper !== undefined && { incomeUpper: body.incomeUpper ?? null }),
+    ...(body.smaregiEmployeeId !== undefined && { smaregiEmployeeId: body.smaregiEmployeeId ?? null }),
     updatedAt: now,
   }).where(and(eq(schema.employees.id, id), eq(schema.employees.facilityId, facilityId)));
   const [updated] = await db.select().from(schema.employees).where(eq(schema.employees.id, id));

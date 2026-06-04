@@ -37,6 +37,7 @@ export const employees = sqliteTable('employees', {
   priority: text('priority', { enum: ['high', 'medium', 'low'] }).notNull().default('medium'),
   incomeLower: integer('income_lower'),
   incomeUpper: integer('income_upper'),
+  smaregiEmployeeId: text('smaregi_employee_id'),  // Smaregi 従業員ID（任意）
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
@@ -111,15 +112,15 @@ export const scheduleSlots = sqliteTable('schedule_slots', {
   updatedAt: text('updated_at').notNull(),
 });
 
-export const facilitySettings = sqliteTable(`facility_settings`, {
-  id: text(`id`).primaryKey(),
-  facilityId: text(`facility_id`).notNull().unique(),
+export const facilitySettings = sqliteTable('facility_settings', {
+  id: text('id').primaryKey(),
+  facilityId: text('facility_id').notNull().unique(),
   // Notion 連携
-  notionEnabled: integer(`notion_enabled`, { mode: `boolean` }).notNull().default(false),
-  notionDatabaseId: text(`notion_database_id`),
+  notionEnabled: integer('notion_enabled', { mode: 'boolean' }).notNull().default(false),
+  notionDatabaseId: text('notion_database_id'),
   // CSV エクスポート（Smaregi タイムカード）
-  csvEnabled: integer(`csv_enabled`, { mode: `boolean` }).notNull().default(false),
-  smaregiBusinessId: text(`smaregi_business_id`),
-  createdAt: text(`created_at`).notNull(),
-  updatedAt: text(`updated_at`).notNull(),
+  csvEnabled: integer('csv_enabled', { mode: 'boolean' }).notNull().default(false),
+  smaregiBusinessId: text('smaregi_business_id'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
 });
