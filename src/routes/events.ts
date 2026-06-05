@@ -92,8 +92,42 @@ eventsRouter.put('/:id', async (c) => {
 // イベント削除
 eventsRouter.delete('/:id', async (c) => {
   const { facilityId } = c.get('auth') as { facilityId: string };
+  const eventId = c.req.param('id');
+
+  // 削除前にイベント情報・メンバー一覧を取得してシフトスロットを先に削除
+  const [event] = await db.select().from(schema.events)
+    .where(and(eq(schema.events.id, eventId), eq(schema.events.facilityId, facilityId)));
+
+  if (event && event.startTime && event.endTime) {
+    const members = await db.select().from(schema.eventEmployees)
+      .where(eq(schema.eventEmployees.eventId, eventId));
+
+    if (members.length > 0) {
+      const [y, m] = event.date.split('-').map(Number);
+      const [sched] = await db.select().from(schema.schedules).where(
+        and(
+          eq(schema.schedules.facilityId, facilityId),
+          eq(schema.schedules.year, y),
+          eq(schema.schedules.month, m),
+        )
+      );
+      if (sched) {
+        for (const member of members) {
+          await db.delete(schema.scheduleSlots).where(
+            and(
+              eq(schema.scheduleSlots.scheduleId, sched.id),
+              eq(schema.scheduleSlots.employeeId, member.employeeId),
+              eq(schema.scheduleSlots.date, event.date),
+            )
+          );
+        }
+      }
+    }
+  }
+
+  // event_employees は ON DELETE CASCADE で自動削除される
   await db.delete(schema.events)
-    .where(and(eq(schema.events.id, c.req.param('id')), eq(schema.events.facilityId, facilityId)));
+    .where(and(eq(schema.events.id, eventId), eq(schema.events.facilityId, facilityId)));
   return c.json({ success: true });
 });
 
